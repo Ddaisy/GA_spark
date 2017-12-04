@@ -9,6 +9,15 @@ object ga {
 
   val LB = Array(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
   val UB = Array(5, 4, 5, 4, 5, 5, 5, 5, 5, 4)
+  val populationSize = 100
+  val chromosomeSize = 10
+  val crossRate = 0.8
+  val mutationRate = 0.01
+  val maxGeneration = 500
+  var G = 0
+  var fval = 100.0
+  var bestFit = 0.0
+  var bestX = new Array[Double](chromosomeSize)
 
   def transFormat(s: String): Array[Double] = {
     s.replace(" ", "\t").split("\t").map(_.toDouble)
@@ -32,22 +41,35 @@ object ga {
     val yingliK = sc.broadcast(aa)
 
 
-    var initArray = sc.parallelize(0 to 99).map(x => (x, new Array[Double](10)))
+    var initArray = sc.parallelize(0 until populationSize).map(x => (x, new Array[Double](chromosomeSize)))
     //populationArray : RDD[(id:Int, (x:Array[Double], Tzb : Array[Array[Double]], fitness: Double))]
     var populationArray = initArray.mapValues(x => initialPopulation.initialPopulation(x, yingliK.value, zaihe.value, Dysum.value, dt))
 
-    //var fit = populationArray.mapValues(x => fitness.fitnessFcn(x._2, x._1, yingliK.value, zaihe.value, Dysum.value, dt))
-    //bestFit : (Int,(Array[Double], Array[Array[Double]],Double))
-    var bestPop = populationArray.min()(new Ordering[(Int,(Array[Double], Array[Array[Double]],Double))] {
-      def compare(x: (Int,(Array[Double], Array[Array[Double]],Double)), y: (Int,(Array[Double], Array[Array[Double]],Double))): Int = x._2._3 compare y._2._3
-    })
+    var i = 0
+    for (i <- 0 until maxGeneration) {
+      var bestPop = populationArray.min()(new Ordering[(Int, (Array[Double], Array[Array[Double]], Double))] {
+        def compare(x: (Int, (Array[Double], Array[Array[Double]], Double)), y: (Int, (Array[Double], Array[Array[Double]], Double))): Int = x._2._3 compare y._2._3
+      })
 
-    var bestIndex = bestPop._1
-    var bestFit = bestPop._2._3
-    var bestX = bestPop._2._1
+      bestFit = bestPop._2._3
 
-    
+      if (bestFit < fval) {
+        fval = bestFit
+        bestX = bestPop._2._1
+      }
 
+      if (i != (maxGeneration - 1)){
+        var selectPop = populationArray.sortBy(x => x._2._3)
+        var initCrossPop = selectPop.map(x => ((x._1 + 1) % 100, x._2))
+        var crossPop = selectPop.join(initCrossPop).map(x => crossFcn.cross(x._1, x._2._1, x._2._2))
+        var mutationPop = crossPop.map(x => mutationFcn.mutation(x))
+
+        populationArray = mutationPop.map(x => fitness.updateFit(x, yingliK.value, zaihe.value, Dysum.value, dt))
+      }
+    }
+
+    println(fval)
+    bestX.foreach(println)
 
 
     sc.stop()

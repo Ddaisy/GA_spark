@@ -19,4 +19,13 @@ object fitness {
     val fit = calFit(Dysum, Dzsum)
     fit
   }
+
+  def updateFit(populationArray: (Int, (Array[Double], Array[Array[Double]], Double)),yingliK: Array[Array[Double]], zaihe: Array[Array[Double]], Dysum: Array[Double], dt: Array[Double]): (Int, (Array[Double], Array[Array[Double]], Double)) = {
+    var Tzb = Array.ofDim[Double](yingliK.length, zaihe(0).length)
+    var i = 0
+    var fit = 0.0
+    Tzb = initialPopulation.calTzb(populationArray._2._1, yingliK, zaihe)
+    fit = fitnessFcn(Tzb,populationArray._2._1,yingliK,zaihe,Dysum,dt)
+    (populationArray._1,(populationArray._2._1, populationArray._2._2, populationArray._2._3))
+  }
 }
