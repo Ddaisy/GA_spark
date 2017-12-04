@@ -312,21 +312,29 @@ object preDysum {
     (noy, xoy)
   }
 
-  def calDysum(noy: Array[Double], xoy: Array[Double]) : Double = {
+  def calDysum(noy: Array[Double], xoy: Array[Double]): Double = {
     val lenOfRfhist = noy.length
     var Dysum = 0.0
 
-    for(i <- 0 until lenOfRfhist){
+    for (i <- 0 until lenOfRfhist) {
       Dysum += noy(i) * Math.pow(xoy(i) * 0.21 / 70, 3.5)
     }
     Dysum
   }
 
-  def testPreData(sigy: RDD[(Int, Array[Double])], dty: Array[Double]): RDD[Double] = {
-    val res_sig2ext = sigy.map(x => sig2ext(x._2, dty))
+  def testPreDysum(sigy: RDD[Array[Double]], dty: Array[Double]): RDD[Double] = {
+    val res_sig2ext = sigy.map(x => sig2ext(x, dty))
     val res_rainFlow = res_sig2ext.map(x => rainFlow(x._1, x._2))
     val res_rfhist = res_rainFlow.map(x => rfhist(x))
     val Dysum = res_rfhist.map(x => calDysum(x._1, x._2))
     Dysum
+  }
+
+  def testPreDzsum(sig: Array[Array[Double]], dt: Array[Double]): Array[Double] = {
+    val res_sig2ext = sig.map(x => sig2ext(x, dt))
+    val res_rainFlow = res_sig2ext.map(x => rainFlow(x._1, x._2))
+    val res_rfhist = res_rainFlow.map(x => rfhist(x))
+    val Dzsum = res_rfhist.map(x => calDysum(x._1, x._2))
+    Dzsum
   }
 }
