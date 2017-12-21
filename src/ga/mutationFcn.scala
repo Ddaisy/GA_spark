@@ -1,7 +1,7 @@
 import ga.{maxGeneration, populationSize, mutationRate, chromosomeSize, UB, LB}
 
 object mutationFcn {
-  def mutation(x: (Int, (Array[Double], Array[Array[Double]], Double))): (Int, (Array[Double], Array[Array[Double]], Double)) = {
+  def mutation(x: (Int, (Array[Double], Double))): (Int, (Array[Double], Double)) = {
     var scale = 0.5
     val shrink = 0.75
     var i = 0

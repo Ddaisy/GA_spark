@@ -18,14 +18,14 @@ object initialPopulation {
     Tzb
   }
 
-  def initialPopulation(initArray: Array[Double], yingliK: Array[Array[Double]], zaihe: Array[Array[Double]], Dysum: Array[Double], dt: Array[Double]): (Array[Double], Array[Array[Double]], Double) = {
+  def initialPopulation(initArray: Array[Double], yingliK: Array[Array[Double]], zaihe: Array[Array[Double]], Dysum: Array[Double], dt: Array[Double]): (Array[Double], Double) = {
     val length = initArray.length
     var populationArray = new Array[Double](length)
     var Tzb = Array.ofDim[Double](yingliK.length, zaihe(0).length)
     var i = 0
 
     var tmp_fit = 100.0
-    while (tmp_fit > 99) {
+    while (tmp_fit > 1.0E-2) {
       for (i <- 0 until length) {
         var value = Math.random()
         populationArray(i) = (UB(i) - LB(i)) * value + LB(i)
@@ -33,7 +33,7 @@ object initialPopulation {
       Tzb = calTzb(populationArray, yingliK, zaihe)
       tmp_fit = fitness.fitnessFcn(Tzb, populationArray, yingliK, zaihe, Dysum, dt)
     }
-    (populationArray, Tzb, tmp_fit)
+    (populationArray, tmp_fit)
   }
 
 }
