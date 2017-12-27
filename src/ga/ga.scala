@@ -47,19 +47,7 @@ object ga {
 
     //populationArray : RDD[(id:Int, (x:Array[Double], fitness: Double))]
     var populationArray = initArray.mapValues(x => initialPopulation.initialPopulation(x, yingliK.value, zaihe.value, Dysum.value, dt))
-
     var res = populationArray
-//      .mapPartitions{x => {
-//      var pop = List[(Array[Double],Double)]()
-//      var tmpPop = (new Array[Double](chromosomeSize), Double.MaxValue)
-//      while(x.hasNext){
-//        var tt = x.next()
-//        if(tt._2._2 < tmpPop._2)
-//          tmpPop = tt._2
-//      }
-//      pop.::(tmpPop).iterator
-//    }}
-
 
     var i = 1
     for (i <- 1 to maxGeneration) {
@@ -84,7 +72,7 @@ object ga {
           pop.::(tmpPop).iterator
         }}
       }else{
-        res = res.++(populationArray)
+        res = res.++(populationArray).coalesce(10).localCheckpoint()
       }
     }
 

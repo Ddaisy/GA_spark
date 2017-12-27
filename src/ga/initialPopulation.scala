@@ -25,7 +25,7 @@ object initialPopulation {
     var i = 0
 
     var tmp_fit = 100.0
-    while (tmp_fit > 1.0E-2) {
+    while (tmp_fit > 1.0) {
       for (i <- 0 until length) {
         var value = Math.random()
         populationArray(i) = (UB(i) - LB(i)) * value + LB(i)
