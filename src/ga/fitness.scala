@@ -26,6 +26,6 @@ object fitness {
     var fit = 0.0
     Tzb = initialPopulation.calTzb(populationArray._2._1, yingliK, zaihe)
     fit = fitnessFcn(Tzb,populationArray._2._1,yingliK,zaihe,Dysum,dt)
-    (populationArray._1,(populationArray._2._1, populationArray._2._2))
+    (populationArray._1,(populationArray._2._1, fit))
   }
 }
