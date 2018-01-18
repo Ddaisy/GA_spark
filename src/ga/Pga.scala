@@ -21,25 +21,36 @@ object Pga {
   var bestFit = 0.0
   var bestX = new Array[Double](chromosomeSize)
 
-  var resArray = List(Int, (new Array[Double](chromosomeSize), Double))
+  var resArray = List[(Int, (Array[Double], Double))]()
 
   def transFormat(s: String): Array[Double] = {
     s.replace(" ", "\t").split("\t").map(_.toDouble)
+  }
+
+  def minOfPartition(x: Iterator[(Int,(Array[Double],Double))]) : Iterator[(Int,(Array[Double],Double))] = {
+    var pop = List[(Int, (Array[Double], Double))]()
+    var tmpPop = (0,(new Array[Double](chromosomeSize), Double.MaxValue))
+    while(x.hasNext){
+      var tt = x.next()
+      if(tt._2._2 < tmpPop._2._2)
+        tmpPop = tt
+    }
+    pop.::(tmpPop).iterator
   }
 
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName("GAtest")
     val sc = new SparkContext(conf)
 
-    val sigy = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTyingli_sigy.txt").map(transFormat)
-    val dty = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTyingli_dty.txt").map(transFormat).collect().flatten
+    val sigy = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tyingli_sigy.txt").map(transFormat)
+    val dty = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tyingli_dty.txt").map(transFormat).collect().flatten
 
     val initDysum = preDysum.testPreDysum(sigy, dty).collect()
     val Dysum = sc.broadcast(initDysum)
 
-    val a = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTzaihe_sig.txt").map(transFormat).collect()
+    val a = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tzaihe_sig.txt").map(transFormat).collect()
     val aa = sc.textFile("hdfs://10.141.208.44:9000/ddy/yingliK.txt").map(transFormat).collect()
-    val dt = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTzaihe_dt.txt").map(transFormat).collect().flatten
+    val dt = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tzaihe_dt.txt").map(transFormat).collect().flatten
 
     val zaihe = sc.broadcast(a)
     val yingliK = sc.broadcast(aa)
@@ -62,17 +73,9 @@ object Pga {
     var crossPop = populationArray
     var mutationPop = populationArray
 
-    var res = populationArray.mapPartitions{x => {
-      var pop = List[(Int,(Array[Double],Double))]()
-      var tmpPop = (0,(new Array[Double](chromosomeSize), Double.MaxValue))
-      while(x.hasNext){
-        var tt = x.next()
-        if(tt._2._2 < tmpPop._2._2)
-          tmpPop = tt
-      }
-      pop.::(tmpPop).iterator
-    }}
+    var res = populationArray.mapPartitions(x => minOfPartition(x))
     var tmp = res
+
 
 
     var i = 1
@@ -104,42 +107,22 @@ object Pga {
       }
 
 //      if(i % 10 == 0){
-        tmp = populationArray.mapPartitions{x => {
-          var pop = List[(Int,(Array[Double],Double))]()
-          var tmpPop = (0,(new Array[Double](chromosomeSize), Double.MaxValue))
-          while(x.hasNext){
-            var tt = x.next()
-            if(tt._2._2 < tmpPop._2._2)
-              tmpPop = tt
-          }
-          pop.::(tmpPop).iterator
-        }}
+        tmp = populationArray.mapPartitions(x => minOfPartition(x))
         res = res.++(tmp).coalesce(10)
 //      }else{
 //        res = res.++(populationArray).coalesce(10)
 //      }
     }
 
-    var best = res.mapPartitions{x => {
-      var pop = List[(Array[Double],Double)]()
-      var tmpPop = (new Array[Double](chromosomeSize), Double.MaxValue)
-      while(x.hasNext){
-        var tt = x.next()
-        if(tt._2._2 < tmpPop._2)
-          tmpPop = tt._2
-      }
-      pop.::(tmpPop).iterator
-    }}
-
-    var bestPop = best.min()(new Ordering[(Array[Double], Double)] {
-      def compare(x: (Array[Double], Double), y: (Array[Double], Double)): Int = x._2 compare y._2
+    var bestPop = res.min()(new Ordering[(Int, (Array[Double], Double))] {
+      def compare(x: (Int, (Array[Double], Double)), y: (Int, (Array[Double], Double))): Int = x._2._2 compare y._2._2
     })
 
     //var bestPop = res.collect().minBy(_._2._2)
     populationArray.unpersist()
 
-    fval = bestPop._2
-    bestX = bestPop._1
+    fval = bestPop._2._2
+    bestX = bestPop._2._1
 
 
     println(fval)
