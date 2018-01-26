@@ -1,3 +1,5 @@
+import org.apache.spark.TaskContext
+
 object fitness {
   def calFit(Dysum: Array[Double], Dzsum: Array[Double]): Double = {
     val length = Dysum.length
@@ -26,6 +28,11 @@ object fitness {
     var fit = 0.0
     Tzb = initialPopulation.calTzb(populationArray._2._1, yingliK, zaihe)
     fit = fitnessFcn(Tzb,populationArray._2._1,yingliK,zaihe,Dysum,dt)
+    val task = TaskContext.get
+    val stageId = task.stageId()
+    val parId = task.partitionId()
+    val taskId = task.taskAttemptId()
+    println(s"--------updateFit : stageID:$stageId\t partitionID:$parId\t taskID:$taskId fit:$fit--------------")
     (populationArray._1,(populationArray._2._1, fit))
   }
 }

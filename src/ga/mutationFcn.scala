@@ -1,4 +1,5 @@
-import ga.{maxGeneration, populationSize, mutationRate, chromosomeSize, UB, LB}
+import ga.{LB, UB, chromosomeSize, maxGeneration, mutationRate, populationSize}
+import org.apache.spark.TaskContext
 
 object mutationFcn {
   def mutation(x: (Int, (Array[Double], Double))): (Int, (Array[Double], Double)) = {
@@ -22,6 +23,11 @@ object mutationFcn {
         }
       }
     }
+    val task = TaskContext.get
+    val stageId = task.stageId()
+    val parId = task.partitionId()
+    val taskId = task.taskAttemptId()
+    println(s"--------mutation : stageID:$stageId\t partitionID:$parId\t taskID:$taskId--------------")
     x
   }
 }

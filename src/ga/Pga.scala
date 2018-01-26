@@ -5,6 +5,7 @@
 import ga.chromosomeSize
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 
 object Pga {
@@ -35,6 +36,27 @@ object Pga {
       if(tt._2._2 < tmpPop._2._2)
         tmpPop = tt
     }
+    val task = TaskContext.get
+    val stageId = task.stageId()
+    val parId = task.partitionId()
+    val taskId = task.taskAttemptId()
+    println(s"--------minOfPartition : stageID:$stageId\t partitionID:$parId\t taskID:$taskId--------------")
+    pop.::(tmpPop).iterator
+  }
+
+  def minOfPartition1(x: Iterator[(Int,(Array[Double],Double))]) : Iterator[(Int,(Array[Double],Double))] = {
+    var pop = List[(Int, (Array[Double], Double))]()
+    var tmpPop = (0,(new Array[Double](chromosomeSize), Double.MaxValue))
+    while(x.hasNext){
+      var tt = x.next()
+      if(tt._2._2 < tmpPop._2._2)
+        tmpPop = tt
+    }
+    val task = TaskContext.get
+    val stageId = task.stageId()
+    val parId = task.partitionId()
+    val taskId = task.taskAttemptId()
+    println(s"--------minOfPartition1 : stageID:$stageId\t partitionID:$parId\t taskID:$taskId--------------")
     pop.::(tmpPop).iterator
   }
 
@@ -42,39 +64,45 @@ object Pga {
     val conf = new SparkConf().setAppName("GAtest")
     val sc = new SparkContext(conf)
 
-    val sigy = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tyingli_sigy.txt").map(transFormat)
-    val dty = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tyingli_dty.txt").map(transFormat).collect().flatten
+    val sigy = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTyingli_sigy.txt").map(transFormat)
+    val dty = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTyingli_dty.txt").map(transFormat).collect().flatten
 
     val initDysum = preDysum.testPreDysum(sigy, dty).collect()
     val Dysum = sc.broadcast(initDysum)
 
-    val a = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tzaihe_sig.txt").map(transFormat).collect()
+    val a = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTzaihe_sig.txt").map(transFormat).collect()
     val aa = sc.textFile("hdfs://10.141.208.44:9000/ddy/yingliK.txt").map(transFormat).collect()
-    val dt = sc.textFile("hdfs://10.141.208.44:9000/ddy/Tzaihe_dt.txt").map(transFormat).collect().flatten
+    val dt = sc.textFile("hdfs://10.141.208.44:9000/ddy/BTzaihe_dt.txt").map(transFormat).collect().flatten
 
     val zaihe = sc.broadcast(a)
     val yingliK = sc.broadcast(aa)
 
-    var initArray = sc.parallelize(0 until populationSize, 10).map(x => (x, new Array[Double](chromosomeSize)))
+    var initArray = sc.parallelize(0 until populationSize, 10).map(x => (x, new Array[Double](chromosomeSize))).cache()
 
     //populationArray : RDD[(id:Int, (x:Array[Double], fitness: Double))]
     //var populationArray = initArray.mapValues(x => initialPopulation.initialPopulation(x, yingliK.value, zaihe.value, Dysum.value, dt))
     var populationArray = initArray.mapPartitions { x => {
         var pop = List[(Int, (Array[Double], Double))]()
         var tmpPop = (0, (new Array[Double](chromosomeSize), Double.MaxValue))
+        val task = TaskContext.get
+        val stageId = task.stageId()
+        val parId = task.partitionId()
+        val taskId = task.taskAttemptId()
         while (x.hasNext) {
           val tt = x.next()
           tmpPop = PinitialPopulation.initialPopulation(tt, yingliK.value, zaihe.value, Dysum.value, dt)
           pop.::=(tmpPop)
+          println(s"-------stageID:$stageId\t partitionID:$parId\t taskID:$taskId\t initArray:tmpPop:$tmpPop---------------------")
         }
         pop.reverseIterator
       }
     }.cache()
-    var crossPop = populationArray
-    var mutationPop = populationArray
+    var crossPop = populationArray.cache()
+    var mutationPop = populationArray.cache()
 
-    var res = populationArray.mapPartitions(x => minOfPartition(x))
-    var tmp = res
+    var res = populationArray.mapPartitions{x => minOfPartition(x)}.cache()
+    var tmp = res.cache()
+
 
 
 
@@ -87,7 +115,7 @@ object Pga {
         //var crossPop = populationArray.join(initCrossPop).map(x => crossFcn.cross(x._1, x._2._1, x._2._2))
         //var crossPop = populationArray.map(x => ((x._1 + 1) % 100, x._2)).join(populationArray).map(x => crossFcn.cross(x._1, x._2._1, x._2._2))
 
-        crossPop = populationArray.mapPartitions(x => {
+        crossPop = populationArray.mapPartitions{x => {
           val pop = x.toArray
           var pop1 = List[(Int,(Array[Double],Double))]()
           var tmpPop = (0,(new Array[Double](chromosomeSize), Double.MaxValue))
@@ -100,19 +128,27 @@ object Pga {
             }
             pop1.::=(tmpPop)
           }
+          val task = TaskContext.get
+          val stageId = task.stageId()
+          val parId = task.partitionId()
+          val taskId = task.taskAttemptId()
+          println(s"--------crossPop_mapPartitions : stageID:$stageId\t partitionID:$parId\t taskID:$taskId--------------")
           pop1.reverseIterator
-        })
+        }}
         mutationPop = crossPop.map(x => mutationFcn.mutation(x))
         populationArray = mutationPop.map(x => fitness.updateFit(x, yingliK.value, zaihe.value, Dysum.value, dt))
       }
 
 //      if(i % 10 == 0){
-        tmp = populationArray.mapPartitions(x => minOfPartition(x))
+        tmp = populationArray.mapPartitions(x => minOfPartition1(x))
         res = res.++(tmp).coalesce(10)
 //      }else{
 //        res = res.++(populationArray).coalesce(10)
 //      }
     }
+
+    println(res.partitions.size)
+
 
     var bestPop = res.min()(new Ordering[(Int, (Array[Double], Double))] {
       def compare(x: (Int, (Array[Double], Double)), y: (Int, (Array[Double], Double))): Int = x._2._2 compare y._2._2
