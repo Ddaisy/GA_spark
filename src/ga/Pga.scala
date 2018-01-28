@@ -136,12 +136,12 @@ object Pga {
           pop1.reverseIterator
         }}
         mutationPop = crossPop.map(x => mutationFcn.mutation(x))
-        populationArray = mutationPop.map(x => fitness.updateFit(x, yingliK.value, zaihe.value, Dysum.value, dt))
+        populationArray = mutationPop.map(x => fitness.updateFit(x, yingliK.value, zaihe.value, Dysum.value, dt)).localCheckpoint()
       }
 
 //      if(i % 10 == 0){
         tmp = populationArray.mapPartitions(x => minOfPartition1(x))
-        res = res.++(tmp).coalesce(10)
+        res = res.++(tmp).coalesce(10).localCheckpoint()
 //      }else{
 //        res = res.++(populationArray).coalesce(10)
 //      }
